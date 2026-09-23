@@ -11,16 +11,50 @@
 // usando multer com diskStorage. Não utilize provedores externos.
 
 const express = require('express');
+const documentRoutes = require('./routes/documentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+app.use(documentRoutes);
+
 // Endpoint de verificação de saúde. As demais rotas (/upload, /documents,
 // /documents/:id/download) serão implementadas durante o Passo 2.
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+app.use((error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      error: 'O arquivo excede o tamanho máximo permitido.',
+      code: 'FILE_TOO_LARGE',
+    });
+  }
+
+  if (error.code === 'INVALID_FILE_TYPE') {
+    return res.status(415).json({
+      error: 'O tipo do arquivo não é permitido.',
+      code: 'INVALID_FILE_TYPE',
+    });
+  }
+
+  const statusCode = error.statusCode || 500;
+  const response = {
+    error: error.message || 'Erro interno do servidor.',
+  };
+
+  if (error.code) {
+    response.code = error.code;
+  }
+
+  return res.status(statusCode).json(response);
 });
 
 if (require.main === module) {
